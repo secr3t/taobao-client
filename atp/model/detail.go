@@ -1,4 +1,4 @@
-package atp_model
+package model
 
 import (
 	"github.com/secr3t/taobao-client/model"

@@ -1,7 +1,8 @@
 package client
 
 import (
-	model "github.com/secr3t/taobao-client/ot/ot_model"
+	model2 "github.com/secr3t/taobao-client/model"
+	"github.com/secr3t/taobao-client/ot/model"
 	"log"
 	"sync"
 	"time"
@@ -75,7 +76,7 @@ func (c *CompoundClient) SearchAndGetDetailsMultiRequestOneTime(param *SearchPar
 	return c.GetDetails(items)
 }
 
-func (c *CompoundClient) GetDetails(items []model.Item) (chan model.DetailItem, error) {
+func (c *CompoundClient) GetDetails(items []model2.Item) (chan model.DetailItem, error) {
 	var wg sync.WaitGroup
 	itemLen := len(items)
 	wg.Add(itemLen)
@@ -96,7 +97,7 @@ func (c *CompoundClient) GetDetails(items []model.Item) (chan model.DetailItem, 
 	return detailChan, nil
 }
 
-func (c *CompoundClient) backgroundDetailRequestItem(wg *sync.WaitGroup, item model.Item, ch chan model.DetailItem, sleepDelta int64) {
+func (c *CompoundClient) backgroundDetailRequestItem(wg *sync.WaitGroup, item model2.Item, ch chan model.DetailItem, sleepDelta int64) {
 	time.Sleep(time.Millisecond * time.Duration(sleepDelta * 50))
 	dc := NewDetailClient(c.ApiKey)
 

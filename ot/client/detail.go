@@ -3,7 +3,8 @@ package client
 import (
 	"errors"
 	"fmt"
-	model "github.com/secr3t/taobao-client/ot/ot_model"
+	model2 "github.com/secr3t/taobao-client/model"
+	model "github.com/secr3t/taobao-client/ot/model"
 	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"math"
@@ -85,8 +86,7 @@ func (c *DetailClient) getDescImgs(id string) ([]string, error) {
 	return descResultToImgs(body)
 }
 
-func (c *DetailClient) GetDetail(item model.Item) (*model.DetailItem, error) {
-	id := item.Id
+func (c *DetailClient) GetDetail(id string) (*model2.DetailItem, error) {
 	descImgs, err := c.GetDescImgs(id)
 
 	if err != nil {
@@ -113,22 +113,22 @@ func (c *DetailClient) GetDetail(item model.Item) (*model.DetailItem, error) {
 	defer res.Body.Close()
 	body, _ := ioutil.ReadAll(res.Body)
 
-	return resultToDetailItem(item, body, descImgs)
+	return resultToDetailItem(id, body, descImgs)
 }
 
-func resultToDetailItem(item model.Item, body []byte, descImgs []string) (*model.DetailItem, error) {
+func resultToDetailItem(id string, body []byte, descImgs []string) (*model2.DetailItem, error) {
 	r := gjson.ParseBytes(body)
 
 	var detailItem model.DetailItem
 
 	if r.Get("ErrorCode").String() != "Ok" {
-		return &detailItem, DetailFail
+		return nil, DetailFail
 	}
 
-	detailItem.Title = item.Title
+	detailItem.Title = getTitle(r)
 	detailItem.DescImgs = descImgs
-	detailItem.NumIid = item.Id
-	detailItem.DetailUrl = item.ProductUrl
+	detailItem.NumIid = id
+	detailItem.DetailUrl = getProductUrl(r)
 	detailItem.Options = getOptions(r)
 	detailItem.Images = getImgs(r)
 
@@ -136,7 +136,25 @@ func resultToDetailItem(item model.Item, body []byte, descImgs []string) (*model
 		return nil, DetailFail
 	}
 
-	return &detailItem, nil
+	var price float64
+	for _, option := range detailItem.Options {
+		if price == 0 {
+			price = option.Price
+		} else {
+			price = math.Min(price, option.Price)
+		}
+	}
+
+	return &model2.DetailItem{
+		Id:         detailItem.NumIid,
+		Title:      detailItem.Title,
+		Price:      price,
+		ProductURL: detailItem.DetailUrl,
+		MainImgURL: detailItem.Images[0],
+		Images:     detailItem.GetImages(),
+		DescImages: detailItem.DescImgs,
+		Options:    detailItem.Options,
+	}, nil
 }
 
 func getImgs(r gjson.Result) []string {
@@ -165,15 +183,23 @@ func descResultToImgs(json []byte) ([]string, error) {
 	return imgs, nil
 }
 
-func getOptions(r gjson.Result) []model.Option {
+func getTitle(r gjson.Result) string {
+	return r.Get(FullInfoPath).Get("Title").String()
+}
+
+func getProductUrl(r gjson.Result) string {
+	return r.Get(FullInfoPath).Get("TaobaoItemUrl").String()
+}
+
+func getOptions(r gjson.Result) []model2.Option {
 	f := r.Get(FullInfoPath)
 
-	optionMap := make(map[string]*model.Option)
+	optionMap := make(map[string]*model2.Option)
 	combinedMap := make(map[string][]string)
 	priceMap := make(map[string]float64)
 
 	f.Get(AttributesPath).ForEach(func(key, value gjson.Result) bool {
-		option := &model.Option{
+		option := &model2.Option{
 			Name:  value.Get(OptionName).String(),
 			Value: value.Get(OptionValue).String(),
 			Img:   value.Get(OptionImage).String(),
@@ -227,7 +253,7 @@ func getOptions(r gjson.Result) []model.Option {
 		}
 	}
 
-	options := make([]model.Option, 0)
+	options := make([]model2.Option, 0)
 
 	for _, v := range optionMap {
 		if v.Price != 0 {

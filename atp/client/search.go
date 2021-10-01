@@ -1,9 +1,9 @@
-package atp_client
+package client
 
 import (
 	"encoding/json"
 	"fmt"
-	model "github.com/secr3t/taobao-client/atp/atp_model"
+	"github.com/secr3t/taobao-client/atp/model"
 	"io/ioutil"
 	"net/http"
 	"net/url"

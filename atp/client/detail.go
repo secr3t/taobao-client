@@ -1,11 +1,13 @@
-package atp_client
+package client
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	model "github.com/secr3t/taobao-client/atp/atp_model"
+	"github.com/secr3t/taobao-client/atp/model"
+	"github.com/secr3t/taobao-client/helper"
+	model2 "github.com/secr3t/taobao-client/model"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -57,6 +59,25 @@ func (c *DetailClient) GetItems(itemIds []string) []model.DetailItem {
 	}
 
 	return items
+}
+
+func (c *DetailClient) GetDetail(itemId string) *model2.DetailItem {
+	result, err := c.GetItem(itemId)
+	if err != nil {
+		return nil
+	}
+	result.DetailItem.SetOptions()
+
+	return &model2.DetailItem{
+		Id: result.DetailItem.NumIid,
+		Title: result.DetailItem.Title,
+		Price: helper.PriceAsFloat(result.DetailItem.Price),
+		ProductURL: result.DetailItem.DetailURL,
+		MainImgURL: result.DetailItem.GetMainImg(),
+		Images: result.DetailItem.GetItemImgs(),
+		DescImages: result.DetailItem.DescImg,
+		Options: result.DetailItem.Options,
+	}
 }
 
 func (c *DetailClient) GetDetails(itemIds []string) chan *model.DetailItem {
@@ -143,7 +164,7 @@ func (c *DetailClient) getDetailQueryParam(itemId string, noCache bool) string {
 	p.Add("api_name", detailApiName)
 	p.Add("route", route)
 	p.Add("lang", lang)
-	p.Add("is_promotion", "!")
+	p.Add("is_promotion", "1")
 	p.Add("key", c.apiKey)
 	p.Add("num_iid", itemId)
 	if noCache {

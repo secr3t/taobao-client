@@ -2,7 +2,7 @@ package client
 
 import (
 	"errors"
-	model "github.com/secr3t/taobao-client/ot/ot_model"
+	"github.com/secr3t/taobao-client/model"
 	"github.com/tidwall/gjson"
 	"io/ioutil"
 	"net/http"
@@ -41,6 +41,12 @@ func NewSearchClient(apiKey string) *SearchClient {
 	}
 }
 
+func (c *SearchClient) GetItems(uri string) []model.Item {
+	param := SearchParamFromUri(0, uri)
+
+	return c.SearchTilLimit(&param, 200)
+}
+
 func (c *SearchClient) SearchItems(param SearchParam) (model.SearchResult, error) {
 	query := param.ToQuery(c.ApiKey)
 
@@ -56,7 +62,7 @@ func (c *SearchClient) SearchItems(param SearchParam) (model.SearchResult, error
 	return searchResultToItems(body)
 }
 
-func (c *SearchClient) SearchTilLimit(param *SearchParam, limit int)[]model.Item  {
+func (c *SearchClient) SearchTilLimit(param *SearchParam, limit int) []model.Item {
 	result, err := c.SearchItems(*param)
 
 	if err != nil {
@@ -78,12 +84,12 @@ func (c *SearchClient) SearchTilLimit(param *SearchParam, limit int)[]model.Item
 
 	wg := sync.WaitGroup{}
 
-	for ;limit > 0; limit -= frameSize{
+	for ; limit > 0; limit -= frameSize {
 		param.Page += len(result.Items)
 		wg.Add(1)
 		go func() {
 			result, err = c.SearchItems(*param)
-			for _,item := range result.Items {
+			for _, item := range result.Items {
 				itemsChan <- item
 			}
 			wg.Done()

@@ -1,6 +1,7 @@
 package model
 
 import (
+	model2 "github.com/secr3t/taobao-client/model"
 	"regexp"
 	"strings"
 )
@@ -18,14 +19,7 @@ type DetailItem struct {
 	NumIid    string   `json:"num_iid"`
 	DescUrl   string   `json:"desc_url"`
 	DetailUrl string   `json:"detail_url"`
-	Options   []Option `json:"options"`
-}
-
-type Option struct {
-	Img   string  `json:"img"`
-	Name  string  `json:"name"`
-	Price float64 `json:"price"`
-	Value string  `json:"value"`
+	Options   []model2.Option `json:"options"`
 }
 
 func (i DetailItem) GetImages() []string {
