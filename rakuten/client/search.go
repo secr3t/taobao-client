@@ -35,7 +35,7 @@ func (c *SearchClient) GetItems(uri string) []model2.Item {
 		return []model2.Item{}
 	}
 
-	rakutenParam := helper.GetRakutenClientParamsFromUri(uri)
+	rakutenParam := ParamsFromUri(uri)
 	return c.SearchTilLimit(&rakutenParam, 200)
 }
 
@@ -112,4 +112,21 @@ func (c *SearchClient) SearchItems(param SearchParam) model.Search {
 	search.RateLimit = rateLimit
 
 	return search
+}
+
+func ParamsFromUri(uri string) SearchParam {
+	values := helper.ParseUri(uri)
+
+	catId, _ := strconv.Atoi(values.Get("cat"))
+	startPrice, endPrice := helper.GetStartEndPrice(values.Get("filter"))
+
+	return NewSearchParam(
+		values.Get("q"),
+		values.Get("sort"),
+		1,
+		100,
+		startPrice,
+		endPrice,
+		catId,
+	)
 }

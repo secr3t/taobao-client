@@ -3,7 +3,6 @@ package helper
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/secr3t/rakuten-taobao-client/client"
 	"github.com/thoas/go-funk"
 	"image"
 	"io/ioutil"
@@ -128,23 +127,6 @@ func saveDiffImage(img image.Image, path string) {
 
 func saveImage(img image.Image, path string) {
 	_ = imaging.Save(img, path)
-}
-
-func GetRakutenClientParamsFromUri(uri string) client.SearchParam {
-	values := ParseUri(uri)
-
-	catId, _ := strconv.Atoi(values.Get("cat"))
-	startPrice, endPrice := GetStartEndPrice(values.Get("filter"))
-
-	return client.NewSearchParam(
-		values.Get("q"),
-		values.Get("sort"),
-		1,
-		100,
-		startPrice,
-		endPrice,
-		catId,
-	)
 }
 
 func PriceAsFloat(price string) float64 {
