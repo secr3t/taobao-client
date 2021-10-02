@@ -75,7 +75,7 @@ func (c *DetailClient) GetDetail(itemId string) *model2.DetailItem {
 		ProductURL: result.DetailItem.DetailURL,
 		MainImgURL: result.DetailItem.GetMainImg(),
 		Images: result.DetailItem.GetItemImgs(),
-		DescImages: result.DetailItem.DescImg,
+		DescImages: result.DetailItem.GetDetailImgs(),
 		Options: result.DetailItem.Options,
 	}
 }

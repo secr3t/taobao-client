@@ -92,6 +92,16 @@ func (di *DetailItem) GetItemImgs() []string {
 	return imgs
 }
 
+func (di *DetailItem) GetDetailImgs() []string {
+	imgs := make([]string, 0)
+	for _, descImg := range di.DescImg {
+		img := `<img src="` + descImg + `">`
+		imgs = append(imgs, img)
+	}
+
+	return imgs
+}
+
 func (di *DetailItem) GetPropImg(propPath string) string {
 	img := di.PropsImg[propPath]
 
