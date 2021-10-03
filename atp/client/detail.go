@@ -62,7 +62,7 @@ func (c *DetailClient) GetItems(itemIds []string) []model.DetailItem {
 }
 
 func (c *DetailClient) GetDetail(itemId string) *model2.DetailItem {
-	result, err := c.GetItem(itemId)
+	result, err := c.getItem(itemId, true)
 	if err != nil {
 		return nil
 	}
@@ -95,7 +95,7 @@ func (c *DetailClient) GetDetails(itemIds []string) chan *model.DetailItem {
 		duration := int64(idx) * delta
 		go func() {
 			time.Sleep(time.Duration(duration))
-			result, err := c.GetItem(itemId)
+			result, err := c.getItem(itemId, true)
 			if err == nil {
 				result.DetailItem.SetOptions()
 				itemChans <- result.DetailItem
