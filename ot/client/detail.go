@@ -184,7 +184,7 @@ func descResultToImgs(json []byte) ([]string, error) {
 }
 
 func getTitle(r gjson.Result) string {
-	return r.Get(FullInfoPath).Get("Title").String()
+	return r.Get(FullInfoPath).Get("OriginalTitle").String()
 }
 
 func getProductUrl(r gjson.Result) string {
