@@ -83,7 +83,7 @@ func (c *TaobaoClient) DetailChain(items []model.Item) chan model.DetailItem{
 
 func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem{
 	var wg sync.WaitGroup
-	var detailChan chan model.DetailItem
+	detailChan := make(chan model.DetailItem, len(ids))
 	defer func() {
 		wg.Wait()
 		close(detailChan)
