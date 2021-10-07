@@ -1,6 +1,7 @@
 package model
 
 import (
+	"github.com/secr3t/taobao-client/model"
 	"math"
 	"strconv"
 	"strings"
@@ -45,18 +46,11 @@ type DetailItem struct {
 	PropsList map[string]string `json:"props_list"`
 	PropsImg  map[string]string `json:"props_img"`
 	DescImg   []string          `json:"desc_img"`
-	Options   []Option
-}
-
-type Option struct {
-	Img      string
-	Name     string
-	Price    float64
-	Value    string
+	Options   []model.Option
 }
 
 func (di *DetailItem) SetOptions() {
-	options := make([]Option, 0)
+	options := make([]model.Option, 0)
 
 	priceMap := make(map[string]float64)
 
@@ -73,7 +67,7 @@ func (di *DetailItem) SetOptions() {
 
 	for propPath, value := range di.PropsList {
 		splited := strings.Split(value, ":")
-		option := Option{
+		option := model.Option{
 			Name:     splited[0],
 			Value:    splited[1],
 			Img:      di.GetPropImg(propPath),
@@ -93,6 +87,16 @@ func (di *DetailItem) GetItemImgs() []string {
 	for _, itemImgs := range di.ItemImgs {
 		img := itemImgs.Url
 		imgs = append(imgs, ValidImg(img))
+	}
+
+	return imgs
+}
+
+func (di *DetailItem) GetDetailImgs() []string {
+	imgs := make([]string, 0)
+	for _, descImg := range di.DescImg {
+		img := `<img src="` + descImg + `">`
+		imgs = append(imgs, img)
 	}
 
 	return imgs

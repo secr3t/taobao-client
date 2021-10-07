@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/secr3t/taobao-client/helper"
+	model2 "github.com/secr3t/taobao-client/model"
 	"github.com/secr3t/taobao-client/openchina/model"
 	"io/ioutil"
 	"log"
@@ -132,4 +134,23 @@ func (c *DetailClient) GetItem(itemId string) (model.DetailResult, error) {
 	}
 
 	return result, nil
+}
+
+func (c *DetailClient) GetDetail(itemId string) *model2.DetailItem {
+	result, err := c.GetItem(itemId)
+	if err != nil {
+		return nil
+	}
+	result.DetailItem.SetOptions()
+
+	return &model2.DetailItem{
+		Id: result.DetailItem.NumIid,
+		Title: result.DetailItem.Title,
+		Price: helper.PriceAsFloat(result.DetailItem.Price),
+		ProductURL: result.DetailItem.DetailURL,
+		MainImgURL: result.DetailItem.GetMainImg(),
+		Images: result.DetailItem.GetItemImgs(),
+		DescImages: result.DetailItem.GetDetailImgs(),
+		Options: result.DetailItem.Options,
+	}
 }

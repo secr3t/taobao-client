@@ -10,6 +10,7 @@ import (
 	"time"
 
 	atpClient "github.com/secr3t/taobao-client/atp/client"
+	ocClient "github.com/secr3t/taobao-client/openchina/client"
 	otClient "github.com/secr3t/taobao-client/ot/client"
 	rakutenClient "github.com/secr3t/taobao-client/rakuten/client"
 )
@@ -24,14 +25,16 @@ type TaobaoClient struct {
 	searchClient    *rakutenClient.SearchClient
 	otSearchClient  *otClient.SearchClient
 	otDetailClient  *otClient.DetailClient
+	ocDetailClient  *ocClient.DetailClient
 	atpDetailClient *atpClient.DetailClient
 }
 
-func NewTaobaoClient(rakutenKey, otKey, atpKey string) *TaobaoClient {
+func NewTaobaoClient(rakutenKey, otKey, atpKey, ocKey string) *TaobaoClient {
 	return &TaobaoClient{
 		searchClient:    rakutenClient.NewSearchClient(rakutenKey),
 		otDetailClient:  otClient.NewDetailClient(otKey),
 		otSearchClient:  otClient.NewSearchClient(otKey),
+		ocDetailClient:  ocClient.NewDetailClient(ocKey),
 		atpDetailClient: atpClient.NewDetailClient(atpKey),
 	}
 }
@@ -77,11 +80,11 @@ func (c *TaobaoClient) Search(uri string) []model.Item {
 	return items
 }
 
-func (c *TaobaoClient) DetailChain(items []model.Item) chan model.DetailItem{
+func (c *TaobaoClient) DetailChain(items []model.Item) chan model.DetailItem {
 	return c.DetailChainWithIds(ItemsToIds(items))
 }
 
-func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem{
+func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem {
 	var wg sync.WaitGroup
 	detailChan := make(chan model.DetailItem, len(ids))
 	defer func() {
@@ -95,7 +98,7 @@ func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem{
 		id := id
 		go func() {
 			var detail *model.DetailItem
-			if detail, _ = c.otDetailClient.GetDetail(id); detail == nil {
+			if detail = c.ocDetailClient.GetDetail(id); detail == nil {
 				detail = c.atpDetailClient.GetDetail(id)
 			}
 
