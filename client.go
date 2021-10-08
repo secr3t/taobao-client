@@ -99,9 +99,10 @@ func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem {
 		go func() {
 			var detail *model.DetailItem
 			if detail, _ = c.otDetailClient.GetDetail(id); detail == nil {
-				if detail = c.ocDetailClient.GetDetail(id); detail == nil {
-					detail = c.atpDetailClient.GetDetail(id)
-				}
+				detail = c.ocDetailClient.GetDetail(id)
+				//if detail = c.ocDetailClient.GetDetail(id); detail == nil {
+				//	detail = c.atpDetailClient.GetDetail(id)
+				//}
 			}
 
 			if detail != nil {
