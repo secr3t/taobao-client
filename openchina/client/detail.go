@@ -106,16 +106,11 @@ func (c *DetailClient) GetItem(itemId string) (model.DetailResult, error) {
 
 	req.Header.Add("Authorization", "Token " + c.apiKey)
 
-	startReq := time.Now()
-
 	res, err := http.DefaultClient.Do(req)
-
-	log.Println(time.Since(startReq))
 
 	if err != nil {
 		return model.DetailResult{}, err
 	}
-
 	defer res.Body.Close()
 	body, _ := ioutil.ReadAll(res.Body)
 
@@ -124,7 +119,6 @@ func (c *DetailClient) GetItem(itemId string) (model.DetailResult, error) {
 	err = json.Unmarshal(body, &result)
 
 	if err != nil {
-		log.Println(string(body))
 		return model.DetailResult{}, err
 	}
 
