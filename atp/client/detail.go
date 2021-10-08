@@ -19,7 +19,7 @@ import (
 
 const detailApiName = "item_get"
 
-var s = semaphore.NewWeighted(10)
+var s = semaphore.NewWeighted(8)
 
 type DetailClient struct {
 	apiKey string

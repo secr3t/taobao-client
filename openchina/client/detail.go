@@ -17,7 +17,7 @@ import (
 	"golang.org/x/sync/semaphore"
 )
 
-var s = semaphore.NewWeighted(10)
+var s = semaphore.NewWeighted(8)
 
 type DetailClient struct {
 	apiKey string

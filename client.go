@@ -98,8 +98,10 @@ func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem {
 		id := id
 		go func() {
 			var detail *model.DetailItem
-			if detail = c.ocDetailClient.GetDetail(id); detail == nil {
-				detail = c.atpDetailClient.GetDetail(id)
+			if detail, _ = c.otDetailClient.GetDetail(id); detail == nil {
+				if detail = c.ocDetailClient.GetDetail(id); detail == nil {
+					detail = c.atpDetailClient.GetDetail(id)
+				}
 			}
 
 			if detail != nil {
