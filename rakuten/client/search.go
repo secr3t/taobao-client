@@ -12,11 +12,6 @@ import (
 	"sync"
 )
 
-const (
-	taobaoApiHost = "taobao-api.p.rapidapi.com"
-	searchItems   = "item_search"
-)
-
 type SearchClient struct {
 	ApiKey string
 }

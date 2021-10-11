@@ -10,7 +10,6 @@ import (
 	"time"
 
 	atpClient "github.com/secr3t/taobao-client/atp/client"
-	ocClient "github.com/secr3t/taobao-client/openchina/client"
 	otClient "github.com/secr3t/taobao-client/ot/client"
 	rakutenClient "github.com/secr3t/taobao-client/rakuten/client"
 )
@@ -25,16 +24,14 @@ type TaobaoClient struct {
 	searchClient    *rakutenClient.SearchClient
 	otSearchClient  *otClient.SearchClient
 	otDetailClient  *otClient.DetailClient
-	ocDetailClient  *ocClient.DetailClient
 	atpDetailClient *atpClient.DetailClient
 }
 
-func NewTaobaoClient(rakutenKey, otKey, atpKey, ocKey string) *TaobaoClient {
+func NewTaobaoClient(rakutenKey, otKey, atpKey string) *TaobaoClient {
 	return &TaobaoClient{
 		searchClient:    rakutenClient.NewSearchClient(rakutenKey),
 		otDetailClient:  otClient.NewDetailClient(otKey),
 		otSearchClient:  otClient.NewSearchClient(otKey),
-		ocDetailClient:  ocClient.NewDetailClient(ocKey),
 		atpDetailClient: atpClient.NewDetailClient(atpKey),
 	}
 }
@@ -99,10 +96,7 @@ func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem {
 		go func() {
 			var detail *model.DetailItem
 			if detail, _ = c.otDetailClient.GetDetail(id); detail == nil {
-				//detail = c.ocDetailClient.GetDetail(id)
-				if detail = c.ocDetailClient.GetDetail(id); detail == nil {
-					detail = c.atpDetailClient.GetDetail(id)
-				}
+				detail = c.atpDetailClient.GetDetail(id)
 			}
 
 			if detail != nil {

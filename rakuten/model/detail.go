@@ -1,108 +1,105 @@
 package model
 
 import (
-	"regexp"
 	"strings"
 )
 
-const httpsPrefix = "https:"
-
-var (
-	imgRegex, _ = regexp.Compile(`//.*/imgextra/.*\.jpg`)
-)
-
-type Detail struct {
-	Result struct {
-		Item   DetailItem   `json:"item"`
-		Status DetailStatus `json:"status"`
-	} `json:"result"`
-	RateLimit *RateLimit
+// DetailSimple struct start
+type DetailSimple struct {
+	Result Result `json:"result"`
 }
-
+type Status struct {
+	Msg           string  `json:"msg"`
+	Code          int     `json:"code"`
+	ExecutionTime float64 `json:"execution_time"`
+}
 type DetailItem struct {
-	Title    string               `json:"title"`
-	Images   []string             `json:"images"`
-	DescImgs []string             `json:"desc_imgs"`
-	NumIid   string               `json:"num_iid"`
-	Skus     map[string]SkuDetail `json:"skus"`
-	SkuBase  struct {
-		Skus []struct {
-			PropPath string `json:"propPath"`
-			SkuID    string `json:"skuId"`
-		} `json:"skus"`
-		Prop []struct {
-			Values []PropValue `json:"values"`
-			Name   string      `json:"name"`
-			Pid    string      `json:"pid"`
-		} `json:"prop"`
-	} `json:"sku_base"`
-	DescUrl   string `json:"desc_url"`
-	DetailUrl string `json:"detail_url"`
+	NumIid         int64    `json:"num_iid"`
+	Title          string   `json:"title"`
+	TotalSales     int      `json:"total_sales"`
+	DetailURL      string   `json:"detail_url"`
+	Images         []string `json:"images"`
+	PromotionPrice string   `json:"promotion_price"`
+	Price          string   `json:"price"`
+}
+type Result struct {
+	Status Status      `json:"status"`
+	Item   *DetailItem `json:"item"`
 }
 
-type PropValue struct {
-	Vid   string `json:"vid"`
-	Name  string `json:"name"`
-	Image string `json:"image"`
+func (d DetailSimple) IsSuccess() bool {
+	return d.Result.Status.Msg == "success"
+}
+// DetailSimple struct end
+
+// Desc struct start
+type Desc struct {
+	Result DescResult `json:"result"`
 }
 
-type SkuDetail struct {
+type DescResult struct {
+	Status Status   `json:"status"`
+	Item   []string `json:"item"`
+}
+
+func (d Desc) IsSuccess() bool {
+	return d.Result.Status.Msg == "success" && d.Result.Item != nil
+}
+
+func (d Desc) GetImages() []string {
+	var imgs []string
+	for _, img := range d.Result.Item {
+		if strings.HasPrefix(img, "http") {
+			img = "http://" + img
+		}
+		imgs = append(imgs, img)
+	}
+	return imgs
+}
+// Desc struct end
+
+// Sku struct start
+type Sku struct {
+	Result SkuResult `json:"result"`
+}
+type Item struct {
+	Pic            string `json:"pic"`
+	Price          string `json:"price"`
+	PromotionPrice string `json:"promotion_price"`
+	Quantity       string `json:"quantity"`
+}
+type Values struct {
+	Vid   string  `json:"vid"`
+	Name  string  `json:"name"`
+	Image *string `json:"image"`
+}
+type Prop struct {
+	Pid    string   `json:"pid"`
+	Name   string   `json:"name"`
+	Values []Values `json:"values"`
+}
+type Skus struct {
+	SkuID    string `json:"skuId"`
+	PropPath string `json:"propPath"`
+}
+type SkuBase struct {
+	Skus []Skus `json:"skus"`
+}
+type SkuResult struct {
+	Status  Status             `json:"status"`
+	Item    *Item              `json:"item"`
+	Prop    []Prop             `json:"prop"`
+	SkuMap  map[string]SkuInfo `json:"skus"`
+	SkuBase *SkuBase           `json:"sku_base"`
+}
+
+type SkuInfo struct {
 	PromotionPrice string `json:"promotion_price"`
 	Quantity       string `json:"quantity"`
 	Price          string `json:"price"`
 }
 
-type DetailStatus struct {
-	Msg           string `json:"msg"`
-	ExecutionTime string `json:"execution_time"`
-	Code          int    `json:"code"`
+func (d Sku) IsSuccess() bool {
+	return d.Result.Status.Msg == "success" && d.Result.Item != nil
 }
-
-func (d Detail) IsSuccess() bool {
-	return d.Result.Status.Msg == "success"
-}
-
-func (i DetailItem) GetImages() []string {
-	var images []string
-	for _, imgUrl := range i.Images {
-		if imgRegex.MatchString(imgUrl) {
-			if strings.HasPrefix(imgUrl, httpsPrefix) {
-				images = append(images, imgUrl)
-			} else {
-				images = append(images, httpsPrefix+imgUrl)
-			}
-		}
-	}
-
-	return images
-}
-
-func (i DetailItem) GetDetailUrl() string {
-	return httpsPrefix + i.DetailUrl
-}
-
-func (i DetailItem) GetDescUrl() string {
-	return httpsPrefix + i.DescUrl
-}
-
-func (i DetailItem) GetDescImgs() []string {
-	var descImgs []string
-
-	for _, descImg := range i.DescImgs {
-		if strings.HasPrefix(descImg, "http") {
-			descImgs = append(descImgs, descImg)
-		} else {
-			descImgs = append(descImgs, httpsPrefix+descImg)
-		}
-	}
-
-	return descImgs
-}
-
-func (v PropValue) GetImage() string {
-	if v.Image == "" {
-		return ""
-	}
-
-	return httpsPrefix + v.Image
-}
+// Sku struct end
