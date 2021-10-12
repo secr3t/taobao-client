@@ -55,8 +55,8 @@ func (d Desc) IsSuccess() bool {
 func (d Desc) GetImages() []string {
 	var imgs []string
 	for _, img := range d.Result.Item {
-		if strings.HasPrefix(img, "http") {
-			img = "http://" + img
+		if !strings.HasPrefix(img, "http") {
+			img = "http:" + img
 		}
 		imgs = append(imgs, img)
 	}
