@@ -32,7 +32,7 @@ type Result struct {
 }
 
 func (d DetailSimple) IsSuccess() bool {
-	return d.Result.Status.Msg == "success"
+	return d.Result.Status.Msg == "success" && len(d.Result.Item.Images) > 0
 }
 
 // DetailSimple struct end
