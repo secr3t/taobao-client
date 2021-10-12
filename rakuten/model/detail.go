@@ -1,6 +1,9 @@
 package model
 
 import (
+	"github.com/secr3t/taobao-client/model"
+	"math"
+	"strconv"
 	"strings"
 )
 
@@ -101,5 +104,57 @@ type SkuInfo struct {
 
 func (d Sku) IsSuccess() bool {
 	return d.Result.Status.Msg == "success" && d.Result.Item != nil
+}
+
+func (d Sku) GetOptions() []model.Option {
+	if !d.IsSuccess() {
+		return nil
+	}
+	options := make([]model.Option, 0)
+	priceMap := make(map[string]float64)
+	optionMap := make(map[string]model.Option)
+	skuMap := make(map[string]string)
+
+	for _, prop := range d.Result.Prop {
+		pid := prop.Pid
+		name := prop.Name
+		for _, value := range prop.Values {
+			var img string
+			if value.Image != nil {
+				img = "http:" + *value.Image
+			}
+			option := model.Option{
+				Name: name,
+				Value: value.Name,
+				Img: img,
+			}
+			optionMap[pid + ":" + value.Vid] = option
+		}
+	}
+
+	for _, sku := range d.Result.SkuBase.Skus {
+		skuMap[sku.SkuID] = sku.PropPath
+	}
+
+	for skuId, skuInfo := range d.Result.SkuMap {
+		if skuId == "0" {
+			continue
+		}
+		for _, propPath := range strings.Split(skuMap[skuId], ";") {
+			price, _ := strconv.ParseFloat(skuInfo.PromotionPrice, 64)
+			if val, ok := priceMap[propPath]; ok {
+				priceMap[propPath] = math.Min(val, price)
+			} else {
+				priceMap[propPath] = price
+			}
+		}
+	}
+
+	for propPath, option := range optionMap {
+		option.Price = priceMap[propPath]
+		options = append(options, option)
+	}
+
+	return options
 }
 // Sku struct end
