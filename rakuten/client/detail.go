@@ -13,7 +13,6 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"sync/atomic"
 )
 
 var (
@@ -21,15 +20,11 @@ var (
 )
 
 type DetailClient struct {
-	ApiKeys  []string
-	idx      int64
 	OtClient *otClient.DetailClient
 }
 
-func NewDetailClient(apiKeys ...string) *DetailClient {
-	return &DetailClient{
-		ApiKeys: apiKeys,
-	}
+func NewDetailClient() *DetailClient {
+	return &DetailClient{}
 }
 
 func (c *DetailClient) AddOtClient(otApiKey string) *DetailClient {
@@ -37,24 +32,18 @@ func (c *DetailClient) AddOtClient(otApiKey string) *DetailClient {
 	return c
 }
 
-func (c *DetailClient) GetRequest(id, api string) *http.Request {
+func (c *DetailClient) GetRequest(id, api string) (*http.Request, string) {
 	queryV := url.Values{}
 	queryV.Add("num_iid", id)
 	uri := GetUri(taobaoApiHost, api, queryV.Encode())
 
 	req, _ := http.NewRequest("GET", uri, nil)
 
-	currentIdx := atomic.LoadInt64(&c.idx)
-	apiKey := c.ApiKeys[currentIdx]
-	req.Header.Add("x-rapidapi-key", apiKey)
+	key := GetApiKey()
+	req.Header.Add("x-rapidapi-key", key)
 	req.Header.Add("x-rapidapi-host", taobaoApiHost)
 
-	atomic.AddInt64(&c.idx, 1)
-	if c.idx == int64(len(c.ApiKeys)) {
-		atomic.StoreInt64(&c.idx, 0)
-	}
-
-	return req
+	return req, key
 }
 
 func (c *DetailClient) GetDetail(id string) *model2.DetailItem {
@@ -116,7 +105,7 @@ func (c *DetailClient) getDesc(id string) model.Desc {
 	s.Acquire(ctx, 1)
 	defer s.Release(1)
 
-	req := c.GetRequest(id, itemDesc)
+	req, key := c.GetRequest(id, itemDesc)
 
 	res, _ := http.DefaultClient.Do(req)
 
@@ -127,6 +116,9 @@ func (c *DetailClient) getDesc(id string) model.Desc {
 
 	json.Unmarshal(body, &desc)
 
+	rateLimit := model.FromHeader(res.Header)
+	go ApiKeyUseEnd(key, rateLimit.Remain)
+
 	return desc
 }
 
@@ -135,7 +127,7 @@ func (c *DetailClient) getSku(id string) model.Sku {
 	s.Acquire(ctx, 1)
 	defer s.Release(1)
 
-	req := c.GetRequest(id, itemSku)
+	req, key := c.GetRequest(id, itemSku)
 
 	res, _ := http.DefaultClient.Do(req)
 
@@ -146,6 +138,9 @@ func (c *DetailClient) getSku(id string) model.Sku {
 
 	json.Unmarshal(body, &sku)
 
+	rateLimit := model.FromHeader(res.Header)
+	go ApiKeyUseEnd(key, rateLimit.Remain)
+
 	return sku
 }
 
@@ -154,7 +149,7 @@ func (c *DetailClient) getDetail(id string) model.DetailSimple {
 	s.Acquire(ctx, 1)
 	defer s.Release(1)
 
-	req := c.GetRequest(id, detailSimple)
+	req, key := c.GetRequest(id, detailSimple)
 
 	res, _ := http.DefaultClient.Do(req)
 
@@ -164,6 +159,9 @@ func (c *DetailClient) getDetail(id string) model.DetailSimple {
 	var detail model.DetailSimple
 
 	json.Unmarshal(body, &detail)
+
+	rateLimit := model.FromHeader(res.Header)
+	go ApiKeyUseEnd(key, rateLimit.Remain)
 
 	return detail
 }

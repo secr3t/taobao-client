@@ -13,12 +13,10 @@ import (
 )
 
 type SearchClient struct {
-	ApiKey string
 }
 
-func NewSearchClient(apiKey string) *SearchClient {
+func NewSearchClient() *SearchClient {
 	return &SearchClient{
-		ApiKey: apiKey,
 	}
 }
 
@@ -91,7 +89,8 @@ func (c *SearchClient) SearchItems(param SearchParam) model.Search {
 
 	req, _ := http.NewRequest("GET", uri, nil)
 
-	req.Header.Add("x-rapidapi-key", c.ApiKey)
+	key := GetApiKey()
+	req.Header.Add("x-rapidapi-key", key)
 	req.Header.Add("x-rapidapi-host", taobaoApiHost)
 
 	res, _ := http.DefaultClient.Do(req)
@@ -105,6 +104,7 @@ func (c *SearchClient) SearchItems(param SearchParam) model.Search {
 
 	rateLimit := model.FromHeader(res.Header)
 	search.RateLimit = rateLimit
+	go ApiKeyUseEnd(key, rateLimit.Remain)
 
 	return search
 }
