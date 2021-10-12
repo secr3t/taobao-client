@@ -7,6 +7,7 @@ import (
 	model2 "github.com/secr3t/taobao-client/model"
 	otClient "github.com/secr3t/taobao-client/ot/client"
 	"github.com/secr3t/taobao-client/rakuten/model"
+	"github.com/tidwall/gjson"
 	"golang.org/x/sync/semaphore"
 	"io/ioutil"
 	"log"
@@ -139,7 +140,9 @@ func (c *DetailClient) getSku(id string) model.Sku {
 
 	err := json.Unmarshal(body, &sku)
 
-	if err != nil {
+	r := gjson.ParseBytes(body)
+
+	if err != nil && !r.Get("result.skus").IsArray() {
 		log.Println(err, id, res.Header)
 	}
 

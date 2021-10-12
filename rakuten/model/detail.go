@@ -90,14 +90,15 @@ type Skus struct {
 	PropPath string `json:"propPath"`
 }
 type SkuBase struct {
-	Skus []Skus `json:"skus"`
+	Skus []Skus `json:"skus,omitempty"`
 }
+
 type SkuResult struct {
-	Status  Status             `json:"status"`
-	Item    *Item              `json:"item"`
-	Prop    []Prop             `json:"prop"`
-	SkuMap  map[string]SkuInfo `json:"skus"`
-	SkuBase *SkuBase           `json:"sku_base"`
+	Status  Status  `json:"status"`
+	Item    *Item   `json:"item"`
+	Prop    []Prop  `json:"prop,omitempty"`
+	SkuMap  map[string]SkuInfo  `json:"skus"`
+	SkuBase SkuBase `json:"sku_base"`
 }
 
 type SkuInfo struct {
