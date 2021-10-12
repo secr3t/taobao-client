@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	atpClient "github.com/secr3t/taobao-client/atp/client"
 	otClient "github.com/secr3t/taobao-client/ot/client"
 	rakutenClient "github.com/secr3t/taobao-client/rakuten/client"
 )
@@ -24,17 +23,13 @@ type TaobaoClient struct {
 	searchClient    *rakutenClient.SearchClient
 	detailClient    *rakutenClient.DetailClient
 	otSearchClient  *otClient.SearchClient
-	otDetailClient  *otClient.DetailClient
-	atpDetailClient *atpClient.DetailClient
 }
 
-func NewTaobaoClient(otKey, atpKey string, rakutenKeys ...string) *TaobaoClient {
+func NewTaobaoClient(otKey string, rakutenKeys ...string) *TaobaoClient {
 	return &TaobaoClient{
 		searchClient:    rakutenClient.NewSearchClient(rakutenKeys[0]),
-		otDetailClient:  otClient.NewDetailClient(otKey),
 		otSearchClient:  otClient.NewSearchClient(otKey),
-		atpDetailClient: atpClient.NewDetailClient(atpKey),
-		detailClient:    rakutenClient.NewDetailClient(rakutenKeys...),
+		detailClient:    rakutenClient.NewDetailClient(rakutenKeys...).AddOtClient(otKey),
 	}
 }
 
@@ -62,7 +57,6 @@ func (c *TaobaoClient) Search(uri string) []model.Item {
 		return items
 	}
 
-	//if items = ItemsFromAtp(uri); len(items) == 0 {
 	if reqUri.Query().Get("ppath") == "" {
 		if items = c.searchClient.GetItems(uri); len(items) == 0 {
 			items = c.otSearchClient.GetItems(uri)
@@ -72,7 +66,6 @@ func (c *TaobaoClient) Search(uri string) []model.Item {
 			items = c.searchClient.GetItems(uri)
 		}
 	}
-	//}
 
 	Cache.Set(uri, items)
 
@@ -97,11 +90,7 @@ func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem {
 		id := id
 		go func() {
 			var detail *model.DetailItem
-			if detail = c.detailClient.GetDetail(id); detail == nil {
-				if detail, _ = c.otDetailClient.GetDetail(id); detail == nil {
-					detail = c.atpDetailClient.GetDetail(id)
-				}
-			}
+			detail = c.detailClient.GetDetail(id)
 
 			if detail != nil {
 				detailChan <- *detail
