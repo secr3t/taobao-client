@@ -22,17 +22,19 @@ func init() {
 
 type TaobaoClient struct {
 	searchClient    *rakutenClient.SearchClient
+	detailClient    *rakutenClient.DetailClient
 	otSearchClient  *otClient.SearchClient
 	otDetailClient  *otClient.DetailClient
 	atpDetailClient *atpClient.DetailClient
 }
 
-func NewTaobaoClient(rakutenKey, otKey, atpKey string) *TaobaoClient {
+func NewTaobaoClient(otKey, atpKey string, rakutenKeys ...string) *TaobaoClient {
 	return &TaobaoClient{
-		searchClient:    rakutenClient.NewSearchClient(rakutenKey),
+		searchClient:    rakutenClient.NewSearchClient(rakutenKeys[0]),
 		otDetailClient:  otClient.NewDetailClient(otKey),
 		otSearchClient:  otClient.NewSearchClient(otKey),
 		atpDetailClient: atpClient.NewDetailClient(atpKey),
+		detailClient:    rakutenClient.NewDetailClient(rakutenKeys...),
 	}
 }
 
@@ -95,8 +97,10 @@ func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem {
 		id := id
 		go func() {
 			var detail *model.DetailItem
-			if detail, _ = c.otDetailClient.GetDetail(id); detail == nil {
-				detail = c.atpDetailClient.GetDetail(id)
+			if detail = c.detailClient.GetDetail(id); detail == nil {
+				if detail, _ = c.otDetailClient.GetDetail(id); detail == nil {
+					detail = c.atpDetailClient.GetDetail(id)
+				}
 			}
 
 			if detail != nil {
