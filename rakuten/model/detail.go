@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"github.com/secr3t/taobao-client/model"
 	"math"
 	"strconv"
@@ -33,6 +34,7 @@ type Result struct {
 func (d DetailSimple) IsSuccess() bool {
 	return d.Result.Status.Msg == "success"
 }
+
 // DetailSimple struct end
 
 // Desc struct start
@@ -59,6 +61,7 @@ func (d Desc) GetImages() []string {
 	}
 	return imgs
 }
+
 // Desc struct end
 
 // Sku struct start
@@ -97,17 +100,67 @@ type SkuResult struct {
 }
 
 type SkuInfo struct {
-	PromotionPrice string `json:"promotion_price"`
-	Quantity       string `json:"quantity"`
-	Price          string `json:"price"`
+	PromotionPrice float64 `json:"promotion_price"`
+	Quantity       int     `json:"quantity"`
+	Price          float64 `json:"price"`
 }
 
-func (d Sku) IsSuccess() bool {
-	return d.Result.Status.Msg == "success" && d.Result.Item != nil
+func (s *SkuInfo) UnmarshalJSON(b []byte) error {
+	var objMap map[string]*json.RawMessage
+	err := json.Unmarshal(b, &objMap)
+	if err != nil {
+		return err
+	}
+
+	var quantity string
+	err = json.Unmarshal(*objMap["quantity"], &quantity)
+	if err != nil {
+		return err
+	}
+
+	s.Quantity, _ = strconv.Atoi(quantity)
+
+	var price string
+	err = json.Unmarshal(*objMap["price"], &price)
+	if err != nil {
+		var floatPrice float64
+		if err = json.Unmarshal(*objMap["price"], &floatPrice); err != nil {
+			return err
+		} else {
+			s.Price = floatPrice
+		}
+	} else {
+		if strings.Contains(price, "-") {
+			price = strings.Split(price, "-")[0]
+		}
+
+		s.Price, _ = strconv.ParseFloat(price, 64)
+	}
+
+
+	if objMap["promotion_price"] == nil {
+		s.PromotionPrice = s.Price
+	} else {
+		var promotionPrice string
+		err = json.Unmarshal(*objMap["promotion_price"], &promotionPrice)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(promotionPrice, "-") {
+			promotionPrice = strings.Split(promotionPrice, "-")[0]
+		}
+		s.PromotionPrice, _ = strconv.ParseFloat(promotionPrice, 64)
+	}
+
+	return nil
 }
 
-func (d Sku) GetOptions() []model.Option {
-	if !d.IsSuccess() {
+func (s Sku) IsSuccess() bool {
+	return s.Result.Status.Msg == "success" && s.Result.Item != nil
+}
+
+func (s Sku) GetOptions() []model.Option {
+	if !s.IsSuccess() {
 		return nil
 	}
 	options := make([]model.Option, 0)
@@ -115,7 +168,7 @@ func (d Sku) GetOptions() []model.Option {
 	optionMap := make(map[string]model.Option)
 	skuMap := make(map[string]string)
 
-	for _, prop := range d.Result.Prop {
+	for _, prop := range s.Result.Prop {
 		pid := prop.Pid
 		name := prop.Name
 		for _, value := range prop.Values {
@@ -124,24 +177,24 @@ func (d Sku) GetOptions() []model.Option {
 				img = "http:" + *value.Image
 			}
 			option := model.Option{
-				Name: name,
+				Name:  name,
 				Value: value.Name,
-				Img: img,
+				Img:   img,
 			}
-			optionMap[pid + ":" + value.Vid] = option
+			optionMap[pid+":"+value.Vid] = option
 		}
 	}
 
-	for _, sku := range d.Result.SkuBase.Skus {
+	for _, sku := range s.Result.SkuBase.Skus {
 		skuMap[sku.SkuID] = sku.PropPath
 	}
 
-	for skuId, skuInfo := range d.Result.SkuMap {
+	for skuId, skuInfo := range s.Result.SkuMap {
 		if skuId == "0" {
 			continue
 		}
 		for _, propPath := range strings.Split(skuMap[skuId], ";") {
-			price, _ := strconv.ParseFloat(skuInfo.PromotionPrice, 64)
+			price := skuInfo.PromotionPrice
 			if val, ok := priceMap[propPath]; ok {
 				priceMap[propPath] = math.Min(val, price)
 			} else {
@@ -157,4 +210,5 @@ func (d Sku) GetOptions() []model.Option {
 
 	return options
 }
+
 // Sku struct end

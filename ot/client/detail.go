@@ -24,11 +24,13 @@ const (
 	DescriptionPath = `OtapiItemDescription.ItemDescription`
 
 	getItemFullInfoWithPromotions = `GetItemFullInfoWithPromotions`
+	getItemBaseInfo               = `GetItemInfo`
 
 	ItemParam      = `itemParameters`
 	ItemParamValue = `<Parameters AllowIncomplete="false" AllowDeleted="false" WaitingTime="500"/>`
 
 	FullInfoPath    = `OtapiItemFullInfo`
+	InfoPath        = `OtapiItemInfo`
 	AttributesPath  = `Attributes.#(IsConfigurator==true)#`
 	CombinationPath = `ConfiguredItems.#(Quantity!=0)#`
 	PromotionsPath  = `Promotions.#.ConfiguredItems`
@@ -114,6 +116,56 @@ func (c *DetailClient) GetDetail(id string) (*model2.DetailItem, error) {
 	body, _ := ioutil.ReadAll(res.Body)
 
 	return resultToDetailItem(id, body, descImgs)
+}
+
+func (c *DetailClient) GetDetailBase(id string) *model2.DetailItem {
+	q := url.Values{}
+
+	q.Add(ItemIdParam, id)
+	q.Add(InstanceKeyParam, c.ApiKey)
+
+	uri := GetUri(host, getItemBaseInfo, q.Encode())
+
+	req, _ := http.NewRequest("GET", uri, nil)
+	res, err := http.DefaultClient.Do(req)
+
+	if err != nil {
+		return nil
+	}
+	defer res.Body.Close()
+	body, _ := ioutil.ReadAll(res.Body)
+
+	return resultToBaseItem(id, body)
+}
+
+func resultToBaseItem(id string, body []byte) *model2.DetailItem {
+	r := gjson.ParseBytes(body)
+	var detailItem model2.DetailItem
+	if r.Get("ErrorCode").String() != "Ok" {
+		return nil
+	}
+
+	imgs := ConvertImgUrls(r.Get(InfoPath).Get(ImgsPath).Array())
+
+	if len(imgs) == 0 {
+		return nil
+	}
+	detailItem.Title = r.Get(InfoPath).Get("OriginalTitle").String()
+	detailItem.Id = id
+	detailItem.ProductURL = r.Get(InfoPath).Get("TaobaoItemUrl").String()
+	detailItem.Images = imgs
+	detailItem.MainImgURL = imgs[0]
+
+	var price float64
+	for _, option := range detailItem.Options {
+		if price == 0 {
+			price = option.Price
+		} else {
+			price = math.Min(price, option.Price)
+		}
+	}
+
+	return &detailItem
 }
 
 func resultToDetailItem(id string, body []byte, descImgs []string) (*model2.DetailItem, error) {

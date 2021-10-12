@@ -1,27 +1,40 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/secr3t/taobao-client/helper"
 	model2 "github.com/secr3t/taobao-client/model"
+	otClient "github.com/secr3t/taobao-client/ot/client"
 	"github.com/secr3t/taobao-client/rakuten/model"
+	"golang.org/x/sync/semaphore"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
 	"sync/atomic"
 )
 
-var idx int64
+var (
+	s = semaphore.NewWeighted(50)
+)
 
 type DetailClient struct {
-	ApiKeys []string
+	ApiKeys  []string
+	idx      int64
+	OtClient *otClient.DetailClient
 }
 
 func NewDetailClient(apiKeys ...string) *DetailClient {
 	return &DetailClient{
 		ApiKeys: apiKeys,
 	}
+}
+
+func (c *DetailClient) AddOtClient(otApiKey string) *DetailClient {
+	c.OtClient = otClient.NewDetailClient(otApiKey)
+	return c
 }
 
 func (c *DetailClient) GetRequest(id, api string) *http.Request {
@@ -31,23 +44,30 @@ func (c *DetailClient) GetRequest(id, api string) *http.Request {
 
 	req, _ := http.NewRequest("GET", uri, nil)
 
-	req.Header.Add("x-rapidapi-key", c.ApiKeys[idx])
+	currentIdx := atomic.LoadInt64(&c.idx)
+	apiKey := c.ApiKeys[currentIdx]
+	req.Header.Add("x-rapidapi-key", apiKey)
 	req.Header.Add("x-rapidapi-host", taobaoApiHost)
 
-	if idx < int64(len(c.ApiKeys) - 1) {
-		atomic.AddInt64(&idx, 1)
-	} else {
-		atomic.StoreInt64(&idx, 0)
+	atomic.AddInt64(&c.idx, 1)
+	if c.idx == int64(len(c.ApiKeys)) {
+		atomic.StoreInt64(&c.idx, 0)
 	}
 
 	return req
 }
 
 func (c *DetailClient) GetDetail(id string) *model2.DetailItem {
+	var detailItem *model2.DetailItem
 	ds := c.getDetail(id)
 
 	if !ds.IsSuccess() {
-		return nil
+		if c.OtClient == nil {
+			return nil
+		}
+		if detailItem = c.OtClient.GetDetailBase(id); detailItem == nil {
+			return nil
+		}
 	}
 
 	desc := c.getDesc(id)
@@ -62,19 +82,40 @@ func (c *DetailClient) GetDetail(id string) *model2.DetailItem {
 		return nil
 	}
 
+	if detailItem != nil {
+		options := sku.GetOptions()
+		var price float64
+		for _, option := range options {
+			if price == 0 {
+				price = option.Price
+			} else {
+				price = math.Min(price, option.Price)
+			}
+		}
+		detailItem.Options = options
+		detailItem.Price = price
+		detailItem.DescImages = desc.GetImages()
+
+		return detailItem
+	}
+
 	return &model2.DetailItem{
-		Id: strconv.FormatInt(ds.Result.Item.NumIid, 10),
-		Title: ds.Result.Item.Title,
-		Price: helper.PriceAsFloat(ds.Result.Item.PromotionPrice),
+		Id:         strconv.FormatInt(ds.Result.Item.NumIid, 10),
+		Title:      ds.Result.Item.Title,
+		Price:      helper.PriceAsFloat(ds.Result.Item.PromotionPrice),
 		ProductURL: ds.Result.Item.DetailURL,
 		MainImgURL: ds.Result.Item.Images[0],
-		Images: ds.Result.Item.Images,
+		Images:     ds.Result.Item.Images,
 		DescImages: desc.GetImages(),
-		Options: sku.GetOptions(),
+		Options:    sku.GetOptions(),
 	}
 }
 
 func (c *DetailClient) getDesc(id string) model.Desc {
+	ctx := context.TODO()
+	s.Acquire(ctx, 1)
+	defer s.Release(1)
+
 	req := c.GetRequest(id, itemDesc)
 
 	res, _ := http.DefaultClient.Do(req)
@@ -90,6 +131,10 @@ func (c *DetailClient) getDesc(id string) model.Desc {
 }
 
 func (c *DetailClient) getSku(id string) model.Sku {
+	ctx := context.TODO()
+	s.Acquire(ctx, 1)
+	defer s.Release(1)
+
 	req := c.GetRequest(id, itemSku)
 
 	res, _ := http.DefaultClient.Do(req)
@@ -105,6 +150,10 @@ func (c *DetailClient) getSku(id string) model.Sku {
 }
 
 func (c *DetailClient) getDetail(id string) model.DetailSimple {
+	ctx := context.TODO()
+	s.Acquire(ctx, 1)
+	defer s.Release(1)
+
 	req := c.GetRequest(id, detailSimple)
 
 	res, _ := http.DefaultClient.Do(req)
