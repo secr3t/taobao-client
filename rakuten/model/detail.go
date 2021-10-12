@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/secr3t/taobao-client/model"
 	"math"
 	"strconv"
@@ -121,22 +122,25 @@ func (s *SkuInfo) UnmarshalJSON(b []byte) error {
 	s.Quantity, _ = strconv.Atoi(quantity)
 
 	var price string
-	err = json.Unmarshal(*objMap["price"], &price)
-	if err != nil {
-		var floatPrice float64
-		if err = json.Unmarshal(*objMap["price"], &floatPrice); err != nil {
-			return err
+	if objMap["price"] != nil {
+		err = json.Unmarshal(*objMap["price"], &price)
+		if err != nil {
+			var floatPrice float64
+			if err = json.Unmarshal(*objMap["price"], &floatPrice); err != nil {
+				return err
+			} else {
+				s.Price = floatPrice
+			}
 		} else {
-			s.Price = floatPrice
+			if strings.Contains(price, "-") {
+				price = strings.Split(price, "-")[0]
+			}
+
+			s.Price, _ = strconv.ParseFloat(price, 64)
 		}
 	} else {
-		if strings.Contains(price, "-") {
-			price = strings.Split(price, "-")[0]
-		}
-
-		s.Price, _ = strconv.ParseFloat(price, 64)
+		return errors.New("price is nil")
 	}
-
 
 	if objMap["promotion_price"] == nil {
 		s.PromotionPrice = s.Price

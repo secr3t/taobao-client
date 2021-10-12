@@ -9,6 +9,7 @@ import (
 	"github.com/secr3t/taobao-client/rakuten/model"
 	"golang.org/x/sync/semaphore"
 	"io/ioutil"
+	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -136,7 +137,11 @@ func (c *DetailClient) getSku(id string) model.Sku {
 
 	var sku model.Sku
 
-	json.Unmarshal(body, &sku)
+	err := json.Unmarshal(body, &sku)
+
+	if err != nil {
+		log.Println(err, id, res.Header)
+	}
 
 	rateLimit := model.FromHeader(res.Header)
 	go ApiKeyUseEnd(key, rateLimit.Remain)
