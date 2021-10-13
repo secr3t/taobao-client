@@ -107,7 +107,7 @@ func (c *DetailClient) getDesc(id string) model.Desc {
 	s.Acquire(ctx, 1)
 	defer s.Release(1)
 
-	req, key := c.GetRequest(id, itemDesc)
+	req, _ := c.GetRequest(id, itemDesc)
 
 	res, _ := http.DefaultClient.Do(req)
 
@@ -118,9 +118,6 @@ func (c *DetailClient) getDesc(id string) model.Desc {
 
 	json.Unmarshal(body, &desc)
 
-	rateLimit := model.FromHeader(res.Header)
-	go ApiKeyUseEnd(key, rateLimit.Remain)
-
 	return desc
 }
 
@@ -129,7 +126,7 @@ func (c *DetailClient) getSku(id string) model.Sku {
 	s.Acquire(ctx, 1)
 	defer s.Release(1)
 
-	req, key := c.GetRequest(id, itemSku)
+	req, _ := c.GetRequest(id, itemSku)
 
 	res, _ := http.DefaultClient.Do(req)
 
@@ -146,8 +143,6 @@ func (c *DetailClient) getSku(id string) model.Sku {
 		log.Println(err, id, res.Header)
 	}
 
-	rateLimit := model.FromHeader(res.Header)
-	go ApiKeyUseEnd(key, rateLimit.Remain)
 
 	return sku
 }
@@ -157,7 +152,7 @@ func (c *DetailClient) getDetail(id string) model.DetailSimple {
 	s.Acquire(ctx, 1)
 	defer s.Release(1)
 
-	req, key := c.GetRequest(id, detailSimple)
+	req, _ := c.GetRequest(id, detailSimple)
 
 	res, _ := http.DefaultClient.Do(req)
 
@@ -168,8 +163,6 @@ func (c *DetailClient) getDetail(id string) model.DetailSimple {
 
 	json.Unmarshal(body, &detail)
 
-	rateLimit := model.FromHeader(res.Header)
-	go ApiKeyUseEnd(key, rateLimit.Remain)
 
 	return detail
 }

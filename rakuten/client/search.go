@@ -102,9 +102,6 @@ func (c *SearchClient) SearchItems(param SearchParam) model.Search {
 
 	json.Unmarshal(body, &search)
 
-	rateLimit := model.FromHeader(res.Header)
-	search.RateLimit = rateLimit
-	go ApiKeyUseEnd(key, rateLimit.Remain)
 
 	return search
 }

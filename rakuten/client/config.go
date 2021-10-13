@@ -1,8 +1,6 @@
 package client
 
 import (
-	"math"
-	"sort"
 	"sync"
 )
 
@@ -16,9 +14,7 @@ const (
 )
 
 var (
-	keyMap = make(map[string]*ApiKey)
-	keys   []*ApiKey
-	m      = &sync.Mutex{}
+	keyRing *SafeRing
 )
 
 type ApiKey struct {
@@ -28,35 +24,41 @@ type ApiKey struct {
 }
 
 func InitApiKeys(apiKeys ...string) {
-	for _, key := range apiKeys {
-		apiKey := &ApiKey{Key: key, Remain: 0, Used: false}
-		keyMap[key] = apiKey
-		keys = append(keys, apiKey)
-	}
+	keyRing = NewSafeRing(apiKeys...)
 }
 
 func GetApiKey() string {
-	m.Lock()
-	defer m.Unlock()
-
-	sort.Slice(keys, func(i, j int) bool {
-		if !keys[i].Used && keys[j].Used {
-			return true
-		} else if keys[i].Used && !keys[j].Used {
-			return false
-		} else {
-			return keys[i].Remain > keys[j].Remain
-		}
-	})
-
-	return keys[0].Key
+	return keyRing.Get()
 }
 
-func ApiKeyUseEnd(apiKey string, remain int) {
-	if !keyMap[apiKey].Used {
-		keyMap[apiKey].Remain = remain
-	} else {
-		keyMap[apiKey].Remain = int(math.Min(float64(remain), float64(keyMap[apiKey].Remain)))
+type SafeRing struct {
+	mutex *sync.Mutex
+	strs  []string
+	idx   int
+	len   int
+}
+
+func NewSafeRing(strs ...string) *SafeRing {
+	sr := &SafeRing{
+		mutex: &sync.Mutex{},
+		strs:  strs,
+		idx:   0,
+		len:   len(strs),
 	}
-	keyMap[apiKey].Used = true
+
+	return sr
+}
+
+func (sr *SafeRing) Get() string {
+	sr.mutex.Lock()
+	defer func() {
+		if sr.idx+1 == sr.len {
+			sr.idx = 0
+		} else {
+			sr.idx += 1
+		}
+		sr.mutex.Unlock()
+	}()
+
+	return sr.strs[sr.idx]
 }
