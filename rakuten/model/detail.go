@@ -58,6 +58,7 @@ func (d Desc) GetImages() []string {
 		if !strings.HasPrefix(img, "http") {
 			img = "http:" + img
 		}
+		img = `<img src="` + img + `">`
 		imgs = append(imgs, img)
 	}
 	return imgs
