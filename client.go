@@ -36,7 +36,7 @@ func NewTaobaoClient(otKey string, rakutenConfig map[int64][]string) *TaobaoClie
 			allKeys = append(allKeys, key)
 		}
 	}
-	rakutenClient.InitApiKeys()
+	rakutenClient.InitApiKeys(allKeys...)
 	return &TaobaoClient{
 		mutex:          &sync.Mutex{},
 		searchClient:   rakutenClient.NewSearchClient(),
