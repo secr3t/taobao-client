@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/secr3t/taobao-client/helper"
 	model2 "github.com/secr3t/taobao-client/model"
 	otClient "github.com/secr3t/taobao-client/ot/client"
@@ -18,7 +19,7 @@ import (
 )
 
 var (
-	s = semaphore.NewWeighted(50)
+	s = semaphore.NewWeighted(20)
 )
 
 type DetailClient struct {
@@ -48,29 +49,29 @@ func (c *DetailClient) GetRequest(id, api string) (*http.Request, string) {
 	return req, key
 }
 
-func (c *DetailClient) GetDetail(id string) *model2.DetailItem {
+func (c *DetailClient) GetDetail(id string) (*model2.DetailItem, error) {
 	var detailItem *model2.DetailItem
 	ds := c.getDetail(id)
 
 	if !ds.IsSuccess() {
 		if c.OtClient == nil {
-			return nil
+			return nil, errors.New("detail : rakuten fail, ot empty " + id)
 		}
 		if detailItem = c.OtClient.GetDetailBase(id); detailItem == nil {
-			return nil
+			return nil, errors.New("detail : rakuten fail, ot fail " + id)
 		}
 	}
 
 	desc := c.getDesc(id)
 
 	if !desc.IsSuccess() {
-		return nil
+		return nil, errors.New("desc : rakuten fail, " + id)
 	}
 
 	sku := c.getSku(id)
 
 	if !sku.IsSuccess() {
-		return nil
+		return nil, errors.New("sku : rakuten fail, " + id)
 	}
 
 	if detailItem != nil {
@@ -87,7 +88,7 @@ func (c *DetailClient) GetDetail(id string) *model2.DetailItem {
 		detailItem.Price = price
 		detailItem.DescImages = desc.GetImages()
 
-		return detailItem
+		return detailItem, nil
 	}
 
 	return &model2.DetailItem{
@@ -99,7 +100,7 @@ func (c *DetailClient) GetDetail(id string) *model2.DetailItem {
 		Images:     ds.Result.Item.Images,
 		DescImages: desc.GetImages(),
 		Options:    sku.GetOptions(),
-	}
+	}, nil
 }
 
 func (c *DetailClient) getDesc(id string) model.Desc {
@@ -109,7 +110,11 @@ func (c *DetailClient) getDesc(id string) model.Desc {
 
 	req, _ := c.GetRequest(id, itemDesc)
 
-	res, _ := http.DefaultClient.Do(req)
+	res, err := http.DefaultClient.Do(req)
+
+	if err != nil {
+		return model.Desc{}
+	}
 
 	defer res.Body.Close()
 	body, _ := ioutil.ReadAll(res.Body)

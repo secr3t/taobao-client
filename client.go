@@ -91,7 +91,7 @@ func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem {
 		id := id
 		go func() {
 			var detail *model.DetailItem
-			detail = c.detailClient.GetDetail(id)
+			detail, _ = c.detailClient.GetDetail(id)
 
 			if detail != nil {
 				detailChan <- *detail
