@@ -18,16 +18,17 @@ import (
 	"strconv"
 )
 
-var (
-	s = semaphore.NewWeighted(20)
-)
-
 type DetailClient struct {
 	OtClient *otClient.DetailClient
+	s        *semaphore.Weighted
+	keyRing  *SafeRing
 }
 
-func NewDetailClient() *DetailClient {
-	return &DetailClient{}
+func NewDetailClient(weight int64, keys []string) *DetailClient {
+	return &DetailClient{
+		s: semaphore.NewWeighted(weight),
+		keyRing: NewSafeRing(keys...),
+	}
 }
 
 func (c *DetailClient) AddOtClient(otApiKey string) *DetailClient {
@@ -42,7 +43,7 @@ func (c *DetailClient) GetRequest(id, api string) (*http.Request, string) {
 
 	req, _ := http.NewRequest("GET", uri, nil)
 
-	key := GetApiKey()
+	key := c.keyRing.Get()
 	req.Header.Add("x-rapidapi-key", key)
 	req.Header.Add("x-rapidapi-host", taobaoApiHost)
 
@@ -105,8 +106,8 @@ func (c *DetailClient) GetDetail(id string) (*model2.DetailItem, error) {
 
 func (c *DetailClient) getDesc(id string) model.Desc {
 	ctx := context.TODO()
-	s.Acquire(ctx, 1)
-	defer s.Release(1)
+	c.s.Acquire(ctx, 1)
+	defer c.s.Release(1)
 
 	req, _ := c.GetRequest(id, itemDesc)
 
@@ -128,8 +129,8 @@ func (c *DetailClient) getDesc(id string) model.Desc {
 
 func (c *DetailClient) getSku(id string) model.Sku {
 	ctx := context.TODO()
-	s.Acquire(ctx, 1)
-	defer s.Release(1)
+	c.s.Acquire(ctx, 1)
+	defer c.s.Release(1)
 
 	req, _ := c.GetRequest(id, itemSku)
 
@@ -148,14 +149,13 @@ func (c *DetailClient) getSku(id string) model.Sku {
 		log.Println(err, id, res.Header)
 	}
 
-
 	return sku
 }
 
 func (c *DetailClient) getDetail(id string) model.DetailSimple {
 	ctx := context.TODO()
-	s.Acquire(ctx, 1)
-	defer s.Release(1)
+	c.s.Acquire(ctx, 1)
+	defer c.s.Release(1)
 
 	req, _ := c.GetRequest(id, detailSimple)
 
@@ -167,7 +167,6 @@ func (c *DetailClient) getDetail(id string) model.DetailSimple {
 	var detail model.DetailSimple
 
 	json.Unmarshal(body, &detail)
-
 
 	return detail
 }
