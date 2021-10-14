@@ -20,17 +20,28 @@ func init() {
 }
 
 type TaobaoClient struct {
-	searchClient    *rakutenClient.SearchClient
-	detailClient    *rakutenClient.DetailClient
-	otSearchClient  *otClient.SearchClient
+	idx            int
+	mutex          *sync.Mutex
+	searchClient   *rakutenClient.SearchClient
+	detailClients  []*rakutenClient.DetailClient
+	otSearchClient *otClient.SearchClient
 }
 
-func NewTaobaoClient(otKey string, rakutenKeys ...string) *TaobaoClient {
-	rakutenClient.InitApiKeys(rakutenKeys...)
+func NewTaobaoClient(otKey string, rakutenConfig map[int64][]string) *TaobaoClient {
+	var allKeys []string
+	var detailClients []*rakutenClient.DetailClient
+	for weight, keys := range rakutenConfig {
+		detailClients = append(detailClients, rakutenClient.NewDetailClient(weight, keys).AddOtClient(otKey))
+		for _, key := range keys {
+			allKeys = append(allKeys, key)
+		}
+	}
+	rakutenClient.InitApiKeys()
 	return &TaobaoClient{
-		searchClient:    rakutenClient.NewSearchClient(),
-		otSearchClient:  otClient.NewSearchClient(otKey),
-		detailClient:    rakutenClient.NewDetailClient().AddOtClient(otKey),
+		mutex:          &sync.Mutex{},
+		searchClient:   rakutenClient.NewSearchClient(),
+		otSearchClient: otClient.NewSearchClient(otKey),
+		detailClients:  detailClients,
 	}
 }
 
@@ -77,6 +88,20 @@ func (c *TaobaoClient) DetailChain(items []model.Item) chan model.DetailItem {
 	return c.DetailChainWithIds(ItemsToIds(items))
 }
 
+func (c *TaobaoClient) GetClient() *rakutenClient.DetailClient {
+	c.mutex.Lock()
+	defer func() {
+		if c.idx+1 == len(c.detailClients) {
+			c.idx = 1
+		} else {
+			c.idx += 1
+		}
+		c.mutex.Unlock()
+	}()
+
+	return c.detailClients[c.idx]
+}
+
 func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem {
 	var wg sync.WaitGroup
 	detailChan := make(chan model.DetailItem, len(ids))
@@ -91,7 +116,7 @@ func (c *TaobaoClient) DetailChainWithIds(ids []string) chan model.DetailItem {
 		id := id
 		go func() {
 			var detail *model.DetailItem
-			detail, _ = c.detailClient.GetDetail(id)
+			detail, _ = c.GetClient().GetDetail(id)
 
 			if detail != nil {
 				detailChan <- *detail
