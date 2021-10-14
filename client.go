@@ -92,7 +92,7 @@ func (c *TaobaoClient) GetClient() *rakutenClient.DetailClient {
 	c.mutex.Lock()
 	defer func() {
 		if c.idx+1 == len(c.detailClients) {
-			c.idx = 1
+			c.idx = 0
 		} else {
 			c.idx += 1
 		}
