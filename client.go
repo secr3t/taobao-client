@@ -25,12 +25,12 @@ type TaobaoClient struct {
 	otSearchClient  *otClient.SearchClient
 }
 
-func NewTaobaoClient(otKey string, rakutenKeys ...string) *TaobaoClient {
+func NewTaobaoClient(otKey string, hook func(key string), rakutenKeys ...string) *TaobaoClient {
 	rakutenClient.InitApiKeys(rakutenKeys...)
 	return &TaobaoClient{
 		searchClient:    rakutenClient.NewSearchClient(),
 		otSearchClient:  otClient.NewSearchClient(otKey),
-		detailClient:    rakutenClient.NewDetailClient().AddOtClient(otKey),
+		detailClient:    rakutenClient.NewDetailClient(hook).AddOtClient(otKey),
 	}
 }
 

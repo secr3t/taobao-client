@@ -23,10 +23,13 @@ var (
 
 type DetailClient struct {
 	OtClient *otClient.DetailClient
+	hook func(key string)
 }
 
-func NewDetailClient() *DetailClient {
-	return &DetailClient{}
+func NewDetailClient(hook func(key string)) *DetailClient {
+	return &DetailClient{
+		hook: hook,
+	}
 }
 
 func (c *DetailClient) AddOtClient(otApiKey string) *DetailClient {
@@ -44,6 +47,10 @@ func (c *DetailClient) GetRequest(id, api string) (*http.Request, string) {
 	key := GetApiKey()
 	req.Header.Add("x-rapidapi-key", key)
 	req.Header.Add("x-rapidapi-host", taobaoApiHost)
+
+	if c.hook != nil {
+		go c.hook(key)
+	}
 
 	return req, key
 }
