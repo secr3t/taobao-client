@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/secr3t/taobao-client/helper"
 	model2 "github.com/secr3t/taobao-client/model"
 	otClient "github.com/secr3t/taobao-client/ot/client"
@@ -17,17 +18,17 @@ import (
 	"strconv"
 )
 
-var (
-	s = semaphore.NewWeighted(50)
-)
-
 type DetailClient struct {
 	OtClient *otClient.DetailClient
+	s        *semaphore.Weighted
+	keyRing  *SafeRing
 	hook func(key string)
 }
 
-func NewDetailClient(hook func(key string)) *DetailClient {
+func NewDetailClient(weight int64, keys []string, hook func(key string)) *DetailClient {
 	return &DetailClient{
+		s: semaphore.NewWeighted(weight),
+		keyRing: NewSafeRing(keys...),
 		hook: hook,
 	}
 }
@@ -44,7 +45,7 @@ func (c *DetailClient) GetRequest(id, api string) (*http.Request, string) {
 
 	req, _ := http.NewRequest("GET", uri, nil)
 
-	key := GetApiKey()
+	key := c.keyRing.Get()
 	req.Header.Add("x-rapidapi-key", key)
 	req.Header.Add("x-rapidapi-host", taobaoApiHost)
 
@@ -55,29 +56,29 @@ func (c *DetailClient) GetRequest(id, api string) (*http.Request, string) {
 	return req, key
 }
 
-func (c *DetailClient) GetDetail(id string) *model2.DetailItem {
+func (c *DetailClient) GetDetail(id string) (*model2.DetailItem, error) {
 	var detailItem *model2.DetailItem
 	ds := c.getDetail(id)
 
 	if !ds.IsSuccess() {
 		if c.OtClient == nil {
-			return nil
+			return nil, errors.New("detail : rakuten fail, ot empty " + id)
 		}
 		if detailItem = c.OtClient.GetDetailBase(id); detailItem == nil {
-			return nil
+			return nil, errors.New("detail : rakuten fail, ot fail " + id)
 		}
 	}
 
 	desc := c.getDesc(id)
 
 	if !desc.IsSuccess() {
-		return nil
+		return nil, errors.New("desc : rakuten fail, " + id)
 	}
 
 	sku := c.getSku(id)
 
 	if !sku.IsSuccess() {
-		return nil
+		return nil, errors.New("sku : rakuten fail, " + id)
 	}
 
 	if detailItem != nil {
@@ -94,7 +95,7 @@ func (c *DetailClient) GetDetail(id string) *model2.DetailItem {
 		detailItem.Price = price
 		detailItem.DescImages = desc.GetImages()
 
-		return detailItem
+		return detailItem, nil
 	}
 
 	return &model2.DetailItem{
@@ -106,17 +107,21 @@ func (c *DetailClient) GetDetail(id string) *model2.DetailItem {
 		Images:     ds.Result.Item.Images,
 		DescImages: desc.GetImages(),
 		Options:    sku.GetOptions(),
-	}
+	}, nil
 }
 
 func (c *DetailClient) getDesc(id string) model.Desc {
 	ctx := context.TODO()
-	s.Acquire(ctx, 1)
-	defer s.Release(1)
+	c.s.Acquire(ctx, 1)
+	defer c.s.Release(1)
 
 	req, _ := c.GetRequest(id, itemDesc)
 
-	res, _ := http.DefaultClient.Do(req)
+	res, err := http.DefaultClient.Do(req)
+
+	if err != nil {
+		return model.Desc{}
+	}
 
 	defer res.Body.Close()
 	body, _ := ioutil.ReadAll(res.Body)
@@ -130,8 +135,8 @@ func (c *DetailClient) getDesc(id string) model.Desc {
 
 func (c *DetailClient) getSku(id string) model.Sku {
 	ctx := context.TODO()
-	s.Acquire(ctx, 1)
-	defer s.Release(1)
+	c.s.Acquire(ctx, 1)
+	defer c.s.Release(1)
 
 	req, _ := c.GetRequest(id, itemSku)
 
@@ -150,14 +155,13 @@ func (c *DetailClient) getSku(id string) model.Sku {
 		log.Println(err, id, res.Header)
 	}
 
-
 	return sku
 }
 
 func (c *DetailClient) getDetail(id string) model.DetailSimple {
 	ctx := context.TODO()
-	s.Acquire(ctx, 1)
-	defer s.Release(1)
+	c.s.Acquire(ctx, 1)
+	defer c.s.Release(1)
 
 	req, _ := c.GetRequest(id, detailSimple)
 
@@ -169,7 +173,6 @@ func (c *DetailClient) getDetail(id string) model.DetailSimple {
 	var detail model.DetailSimple
 
 	json.Unmarshal(body, &detail)
-
 
 	return detail
 }
