@@ -165,7 +165,7 @@ func (s Sku) IsSuccess() bool {
 	return s.Result.Status.Msg == "success" && s.Result.Item != nil
 }
 
-func (s Sku) GetOptions() []model.Option {
+func (s Sku) GetOptions(promotionRate float64) []model.Option {
 	if !s.IsSuccess() {
 		return nil
 	}
@@ -201,6 +201,9 @@ func (s Sku) GetOptions() []model.Option {
 		}
 		for _, propPath := range strings.Split(skuMap[skuId], ";") {
 			price := skuInfo.PromotionPrice
+			if price == 0 {
+				price = skuInfo.Price * promotionRate
+			}
 			if val, ok := priceMap[propPath]; ok {
 				priceMap[propPath] = math.Min(val, price)
 			} else {

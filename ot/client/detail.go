@@ -155,15 +155,10 @@ func resultToBaseItem(id string, body []byte) *model2.DetailItem {
 	detailItem.ProductURL = r.Get(InfoPath).Get("TaobaoItemUrl").String()
 	detailItem.Images = imgs
 	detailItem.MainImgURL = imgs[0]
-
-	var price float64
-	for _, option := range detailItem.Options {
-		if price == 0 {
-			price = option.Price
-		} else {
-			price = math.Min(price, option.Price)
-		}
+	if r.Get(InfoPath).Get("Price.PromotionPrice.OriginalPrice").Exists() {
+		detailItem.PromotionPrice = r.Get(InfoPath).Get("PromotionPrice.OriginalPrice").Float()
 	}
+	detailItem.Price = r.Get(InfoPath).Get("Price.OriginalPrice").Float()
 
 	return &detailItem
 }
