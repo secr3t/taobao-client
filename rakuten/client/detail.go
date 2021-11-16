@@ -87,7 +87,7 @@ func (c *DetailClient) GetDetail(id string) (*model2.DetailItem, error) {
 		for _, option := range options {
 			if price == 0 {
 				price = option.Price
-			} else {
+			} else if option.Price != 0{
 				price = math.Min(price, option.Price)
 			}
 		}
