@@ -157,7 +157,7 @@ func (c *DetailClient) getSku(id string) model.Sku {
 
 	r := gjson.ParseBytes(body)
 
-	if err != nil && !r.Get("result.skus").IsArray() {
+	if err != nil && r.Get("result.skus").IsArray() {
 		log.Println(err, id, res.Header)
 	}
 
