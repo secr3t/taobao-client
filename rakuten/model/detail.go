@@ -201,6 +201,9 @@ func (s Sku) GetOptions(promotionRate float64) []model.Option {
 		}
 		for _, propPath := range strings.Split(skuMap[skuId], ";") {
 			price := skuInfo.PromotionPrice
+			if price == skuInfo.Price && promotionRate != 1 {
+				price = price * promotionRate
+			}
 			if price == 0 {
 				price = skuInfo.Price * promotionRate
 			}
