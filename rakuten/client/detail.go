@@ -22,14 +22,14 @@ type DetailClient struct {
 	OtClient *otClient.DetailClient
 	s        *semaphore.Weighted
 	keyRing  *SafeRing
-	hook func(key string)
+	hook     func(key string)
 }
 
 func NewDetailClient(weight int64, keys []string, hook func(key string)) *DetailClient {
 	return &DetailClient{
-		s: semaphore.NewWeighted(weight),
+		s:       semaphore.NewWeighted(weight),
 		keyRing: NewSafeRing(keys...),
-		hook: hook,
+		hook:    hook,
 	}
 }
 
@@ -70,6 +70,8 @@ func (c *DetailClient) GetDetail(id string) (*model2.DetailItem, error) {
 		}
 		if detailItem.PromotionPrice != 0 {
 			promotionRate = detailItem.PromotionPrice / detailItem.Price
+		} else {
+			return nil, errors.New("detail : rakuten fail, ot fail (no promo) " + id)
 		}
 	} else {
 		promotionRate = helper.PriceAsFloat(ds.Result.Item.PromotionPrice) / helper.PriceAsFloat(ds.Result.Item.Price)
@@ -93,7 +95,7 @@ func (c *DetailClient) GetDetail(id string) (*model2.DetailItem, error) {
 		for _, option := range options {
 			if price == 0 {
 				price = option.Price
-			} else if option.Price != 0{
+			} else if option.Price != 0 {
 				price = math.Min(price, option.Price)
 			}
 		}
