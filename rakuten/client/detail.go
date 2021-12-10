@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 type DetailClient struct {
@@ -56,9 +57,17 @@ func (c *DetailClient) GetRequest(id, api string) (*http.Request, string) {
 	return req, key
 }
 
-func (c *DetailClient) GetDetail(id string) (*model2.DetailItem, error) {
+func (c *DetailClient) GetDetail(arg string) (*model2.DetailItem, error) {
 	var detailItem *model2.DetailItem
 	var promotionRate = 1.0
+	var promotionPrice = 0.0
+	args := strings.Split(arg, "-")
+	id := args[0]
+
+	if len(args) > 1 {
+		promotionPrice = helper.PriceAsFloat(args[1])
+	}
+
 	ds := c.getDetail(id)
 
 	if !ds.IsSuccess() {
@@ -68,13 +77,17 @@ func (c *DetailClient) GetDetail(id string) (*model2.DetailItem, error) {
 		if detailItem = c.OtClient.GetDetailBase(id); detailItem == nil {
 			return nil, errors.New("detail : rakuten fail, ot fail " + id)
 		}
+		detailItem.PromotionPrice = promotionPrice
 		if detailItem.PromotionPrice != 0 {
 			promotionRate = detailItem.PromotionPrice / detailItem.Price
 		} else {
 			return nil, errors.New("detail : rakuten fail, ot fail (no promo) " + id)
 		}
 	} else {
-		promotionRate = helper.PriceAsFloat(ds.Result.Item.PromotionPrice) / helper.PriceAsFloat(ds.Result.Item.Price)
+		if dsPromotionPrice := helper.PriceAsFloat(ds.Result.Item.PromotionPrice); dsPromotionPrice != 0 {
+			promotionPrice = dsPromotionPrice
+		}
+		promotionRate = promotionPrice / helper.PriceAsFloat(ds.Result.Item.Price)
 	}
 
 	desc := c.getDesc(id)
