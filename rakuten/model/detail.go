@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/secr3t/taobao-client/model"
+	"github.com/tidwall/gjson"
 	"math"
 	"strconv"
 	"strings"
@@ -30,6 +31,15 @@ type DetailItem struct {
 type Result struct {
 	Status Status      `json:"status"`
 	Item   *DetailItem `json:"item"`
+}
+
+func (s *Status) UnmarshalJSON(b []byte) error {
+	r := gjson.ParseBytes(b)
+	s.Msg = r.Get("msg").String()
+	s.Code = int(r.Get("code").Int())
+	s.ExecutionTime = r.Get("execution_time").Float()
+	
+	return nil
 }
 
 func (d DetailSimple) IsSuccess() bool {
@@ -95,11 +105,11 @@ type SkuBase struct {
 }
 
 type SkuResult struct {
-	Status  Status  `json:"status"`
-	Item    *Item   `json:"item"`
-	Prop    []Prop  `json:"prop,omitempty"`
-	SkuMap  map[string]SkuInfo  `json:"skus"`
-	SkuBase SkuBase `json:"sku_base"`
+	Status  Status             `json:"status"`
+	Item    *Item              `json:"item"`
+	Prop    []Prop             `json:"prop,omitempty"`
+	SkuMap  map[string]SkuInfo `json:"skus"`
+	SkuBase SkuBase            `json:"sku_base"`
 }
 
 type SkuInfo struct {
