@@ -20,17 +20,19 @@ import (
 )
 
 type DetailClient struct {
-	OtClient *otClient.DetailClient
-	s        *semaphore.Weighted
-	keyRing  *SafeRing
-	hook     func(key string)
+	OtClient      *otClient.DetailClient
+	s             *semaphore.Weighted
+	keyRing       *SafeRing
+	hook          func(key, name string)
+	detailBaseKey string
 }
 
-func NewDetailClient(weight int64, keys []string, hook func(key string)) *DetailClient {
+func NewDetailClient(weight int64, keys []string, detailBaseKey string, hook func(key, name string)) *DetailClient {
 	return &DetailClient{
-		s:       semaphore.NewWeighted(weight),
-		keyRing: NewSafeRing(keys...),
-		hook:    hook,
+		s:             semaphore.NewWeighted(weight),
+		keyRing:       NewSafeRing(keys...),
+		hook:          hook,
+		detailBaseKey: detailBaseKey,
 	}
 }
 
@@ -51,14 +53,13 @@ func (c *DetailClient) GetRequest(id, api string) (*http.Request, string) {
 	req.Header.Add("x-rapidapi-host", taobaoApiHost)
 
 	if c.hook != nil {
-		go c.hook(key)
+		go c.hook(key, "taobao-api")
 	}
 
 	return req, key
 }
 
 func (c *DetailClient) GetDetail(arg string) (*model2.DetailItem, error) {
-	var detailItem *model2.DetailItem
 	var promotionRate = 1.0
 	var promotionPrice = 0.0
 	args := strings.Split(arg, "-")
@@ -68,66 +69,37 @@ func (c *DetailClient) GetDetail(arg string) (*model2.DetailItem, error) {
 		promotionPrice = helper.PriceAsFloat(args[1])
 	}
 
-	ds := c.getDetail(id)
+	base := c.getDetail(id)
 
-	if !ds.IsSuccess() {
-		if c.OtClient == nil {
-			return nil, errors.New("detail : rakuten fail, ot empty " + id)
-		}
-		if detailItem = c.OtClient.GetDetailBase(id); detailItem == nil {
-			return nil, errors.New("detail : rakuten fail, ot fail " + id)
-		}
-		detailItem.PromotionPrice = promotionPrice
-		if detailItem.PromotionPrice != 0 {
-			promotionRate = detailItem.PromotionPrice / detailItem.Price
-		} else {
-			return nil, errors.New("detail : rakuten fail, ot fail (no promo) " + id)
-		}
-	} else {
-		if dsPromotionPrice := helper.PriceAsFloat(ds.Result.Item.PromotionPrice); dsPromotionPrice != 0 {
-			promotionPrice = dsPromotionPrice
-		}
-		promotionRate = promotionPrice / helper.PriceAsFloat(ds.Result.Item.Price)
+	if !base.IsSuccess() {
+		return nil, errors.New("detail : ttpd failed (no promo) " + id)
 	}
 
 	desc := c.getDesc(id)
 
 	if !desc.IsSuccess() {
-		return nil, errors.New("desc : rakuten fail, " + id)
+		return nil, errors.New("desc : taobao-api failed, " + id)
 	}
 
-	sku := c.getSku(id)
-
-	if !sku.IsSuccess() {
-		return nil, errors.New("sku : rakuten fail, " + id)
-	}
-
-	if detailItem != nil {
-		options := sku.GetOptions(promotionRate)
-		var price float64
+	options := base.Data.GetOptions(promotionRate)
+	if promotionPrice == 0.0 {
 		for _, option := range options {
-			if price == 0 {
-				price = option.Price
+			if promotionPrice == 0 {
+				promotionPrice = option.Price
 			} else if option.Price != 0 {
-				price = math.Min(price, option.Price)
+				promotionPrice = math.Min(promotionPrice, option.Price)
 			}
 		}
-		detailItem.Options = options
-		detailItem.Price = price
-		detailItem.DescImages = desc.GetImages()
-
-		return detailItem, nil
 	}
 
 	return &model2.DetailItem{
-		Id:         strconv.FormatInt(ds.Result.Item.NumIid, 10),
-		Title:      ds.Result.Item.Title,
-		Price:      helper.PriceAsFloat(ds.Result.Item.PromotionPrice),
-		ProductURL: ds.Result.Item.DetailURL,
-		MainImgURL: ds.Result.Item.Images[0],
-		Images:     ds.Result.Item.Images,
+		Id:         strconv.FormatInt(base.Data.ItemID, 10),
+		Title:      base.Data.Title,
+		Price:      promotionPrice,
+		MainImgURL: base.Data.MainImgs[0],
+		Images:     base.Data.MainImgs,
 		DescImages: desc.GetImages(),
-		Options:    sku.GetOptions(promotionRate),
+		Options:    options,
 	}, nil
 }
 
@@ -179,21 +151,38 @@ func (c *DetailClient) getSku(id string) model.Sku {
 	return sku
 }
 
-func (c *DetailClient) getDetail(id string) model.DetailSimple {
+func (c *DetailClient) getDetail(id string) model.DetailBase {
 	ctx := context.TODO()
 	c.s.Acquire(ctx, 1)
 	defer c.s.Release(1)
 
-	req, _ := c.GetRequest(id, detailSimple)
+	if c.hook != nil {
+		go c.hook(c.detailBaseKey, "ttpd")
+	}
+
+	req := c.getDetailBaseRequest(id)
+
+	req := c.getDetailBaseRequest(id)
 
 	res, _ := http.DefaultClient.Do(req)
 
 	defer res.Body.Close()
 	body, _ := ioutil.ReadAll(res.Body)
 
-	var detail model.DetailSimple
+	var detail model.DetailBase
 
 	json.Unmarshal(body, &detail)
 
 	return detail
+}
+
+func (c *DetailClient) getDetailBaseRequest(id string) *http.Request {
+	ttpdUrl := "https://taobao-tmall-product-data.p.rapidapi.com/api/sc/taobao/item_detail?item_id=" + id
+
+	req, _ := http.NewRequest("GET", ttpdUrl, nil)
+
+	req.Header.Add("x-rapidapi-key", c.detailBaseKey)
+	req.Header.Add("x-rapidapi-host", "taobao-tmall-product-data.p.rapidapi.com")
+
+	return req
 }

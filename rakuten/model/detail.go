@@ -3,6 +3,7 @@ package model
 import (
 	"encoding/json"
 	"errors"
+	"github.com/secr3t/taobao-client/helper"
 	"github.com/secr3t/taobao-client/model"
 	"github.com/tidwall/gjson"
 	"math"
@@ -10,27 +11,90 @@ import (
 	"strings"
 )
 
-// DetailSimple struct start
-type DetailSimple struct {
-	Result Result `json:"result"`
+type DetailBase struct {
+	Code int    `json:"code"`
+	Msg  string `json:"msg"`
+	Data *Data  `json:"data"`
 }
+type SkuProps struct {
+	Name   string   `json:"prop_name"`
+	Pid    string   `json:"pid"`
+	Values []Values `json:"values"`
+}
+type Data struct {
+	ItemID         int64      `json:"item_id"`
+	Title          string     `json:"title"`
+	CategoryID     string     `json:"category_id"`
+	RootCategoryID string     `json:"root_category_id"`
+	MainImgs       []string   `json:"main_imgs"`
+	SkuProps       []SkuProps `json:"sku_props"`
+	Skus           []BaseSku  `json:"skus"`
+}
+type BaseSku struct {
+	SkuID       string  `json:"skuid"`
+	SalePrice   *string `json:"sale_price"`
+	OriginPrice *string `json:"origin_price"`
+	Stock       string  `json:"stock"`
+	PropPath    string  `json:"props_ids"`
+}
+
+func (d DetailBase) IsSuccess() bool {
+	return d.Data != nil
+}
+
+func (d *Data) GetOptions(promotionRate float64) []model.Option {
+	options := make([]model.Option, 0)
+	priceMap := make(map[string]float64)
+	optionMap := make(map[string]model.Option)
+
+	for _, prop := range d.SkuProps {
+		pid := prop.Pid
+		name := prop.Name
+		for _, value := range prop.Values {
+			var img string
+			if value.Image != nil {
+				img = *value.Image
+			}
+			option := model.Option{
+				Name:  name,
+				Value: value.Name,
+				Img:   img,
+			}
+			optionMap[pid+":"+value.Vid] = option
+		}
+	}
+
+	for _, sku := range d.Skus {
+		for _, propPath := range strings.Split(sku.PropPath, ";") {
+			var price float64
+			if sku.SalePrice == nil {
+				if sku.OriginPrice == nil || promotionRate == 1 {
+					continue
+				}
+				price = helper.PriceAsFloat(*sku.OriginPrice) * promotionRate
+			} else {
+				price = helper.PriceAsFloat(*sku.SalePrice)
+			}
+			if val, ok := priceMap[propPath]; ok {
+				priceMap[propPath] = math.Min(val, price)
+			} else {
+				priceMap[propPath] = price
+			}
+		}
+	}
+
+	for propPath, option := range optionMap {
+		option.Price = priceMap[propPath]
+		options = append(options, option)
+	}
+
+	return options
+}
+
 type Status struct {
 	Msg           string  `json:"msg"`
 	Code          int     `json:"code"`
 	ExecutionTime float64 `json:"execution_time"`
-}
-type DetailItem struct {
-	NumIid         int64    `json:"num_iid"`
-	Title          string   `json:"title"`
-	TotalSales     int      `json:"total_sales"`
-	DetailURL      string   `json:"detail_url"`
-	Images         []string `json:"images"`
-	PromotionPrice string   `json:"promotion_price"`
-	Price          string   `json:"price"`
-}
-type Result struct {
-	Status Status      `json:"status"`
-	Item   *DetailItem `json:"item"`
 }
 
 func (s *Status) UnmarshalJSON(b []byte) error {
@@ -38,15 +102,9 @@ func (s *Status) UnmarshalJSON(b []byte) error {
 	s.Msg = r.Get("msg").String()
 	s.Code = int(r.Get("code").Int())
 	s.ExecutionTime = r.Get("execution_time").Float()
-	
+
 	return nil
 }
-
-func (d DetailSimple) IsSuccess() bool {
-	return d.Result.Status.Msg == "success" && len(d.Result.Item.Images) > 0
-}
-
-// DetailSimple struct end
 
 // Desc struct start
 type Desc struct {
