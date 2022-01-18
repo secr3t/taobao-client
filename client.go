@@ -28,15 +28,16 @@ type TaobaoClient struct {
 }
 
 type RakutenConfig struct {
-	Weight int64
-	Keys   []string
+	Weight  int64
+	Keys    []string
+	BaseKey string
 }
 
-func NewTaobaoClient(otKey string, rakutenConfigs []RakutenConfig, hook func(key string)) *TaobaoClient {
+func NewTaobaoClient(otKey string, rakutenConfigs []RakutenConfig, hook func(key, name string)) *TaobaoClient {
 	var allKeys []string
 	var detailClients []*rakutenClient.DetailClient
 	for _, config := range rakutenConfigs {
-		detailClients = append(detailClients, rakutenClient.NewDetailClient(config.Weight, config.Keys, hook).AddOtClient(otKey))
+		detailClients = append(detailClients, rakutenClient.NewDetailClient(config.Weight, config.Keys, config.BaseKey, hook).AddOtClient(otKey))
 		for _, key := range config.Keys {
 			allKeys = append(allKeys, key)
 		}
