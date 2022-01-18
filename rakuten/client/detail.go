@@ -162,8 +162,6 @@ func (c *DetailClient) getDetail(id string) model.DetailBase {
 
 	req := c.getDetailBaseRequest(id)
 
-	req := c.getDetailBaseRequest(id)
-
 	res, _ := http.DefaultClient.Do(req)
 
 	defer res.Body.Close()
