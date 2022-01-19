@@ -147,7 +147,7 @@ type Item struct {
 type Values struct {
 	Vid   string  `json:"vid"`
 	Name  string  `json:"name"`
-	Image *string `json:"image"`
+	Image *string `json:"imageUrl"`
 }
 type Prop struct {
 	Pid    string   `json:"pid"`
