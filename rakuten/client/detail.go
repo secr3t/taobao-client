@@ -75,7 +75,7 @@ func (c *DetailClient) GetDetail(arg string) (*model2.DetailItem, error) {
 		return nil, errors.New("detail : ttpd failed (no promo) " + id)
 	}
 
-	desc := c.getDesc(id)
+	desc := c.GetDesc(id)
 
 	if !desc.IsSuccess() {
 		return nil, errors.New("desc : taobao-api failed, " + id)
@@ -103,7 +103,7 @@ func (c *DetailClient) GetDetail(arg string) (*model2.DetailItem, error) {
 	}, nil
 }
 
-func (c *DetailClient) getDesc(id string) model.Desc {
+func (c *DetailClient) GetDesc(id string) model.Desc {
 	ctx := context.TODO()
 	c.s.Acquire(ctx, 1)
 	defer c.s.Release(1)
